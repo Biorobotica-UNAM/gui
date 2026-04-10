@@ -8,10 +8,11 @@ import re
 import subprocess
 import signal
 import rclpy
+import shutil 
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from rclpy.node import Node
 from std_msgs.msg import String, Bool
-
+ 
 baeDIR = os.path.dirname(os.path.abspath(__file__))
 bioroboticsIMG = os.path.join(baeDIR, "JustinaScreen.png")
 abortGif = os.path.join(baeDIR, "abort.gif")
@@ -19,6 +20,7 @@ pointingGif = os.path.join(baeDIR, "pointing.gif")
 microGif = os.path.join(baeDIR, "microphone.gif")
 
 def monitor_position(monitor_name: str):
+    """Obtiene posición y tamaño de un monitor usando xrandr."""
     xrandr_output = subprocess.check_output(["xrandr"], text=True)
     monitor_match = re.search(
         rf"^{re.escape(monitor_name)}\s+connected.*?(\d+)x(\d+)\+(\d+)\+(\d+)",
@@ -26,60 +28,65 @@ def monitor_position(monitor_name: str):
         flags=re.MULTILINE
     )
     if not monitor_match:
-        raise RuntimeError(f"No se encontró el monitor '{monitor_name}' conectado. Revisa `xrandr`.")
+        raise RuntimeError(f"Monitor '{monitor_name}' no encontrado. Revisa `xrandr`.")
     width, height, pos_x, pos_y = map(int, monitor_match.groups())
     return width, height, pos_x, pos_y
 
 def detect_robot_monitor():
-    xrandr_output = subprocess.check_output(["xrandr"], text=True)
-    connected_monitors = []
-    for line in xrandr_output.splitlines():
-        if " connected" in line:
-            connected_monitors.append(line)
-    # Prioridad: monitor externo con resolución 1280x800
+# Detecta monitor externo; None si no hay xrandr (1280x800 > DP > HDMI)
+    if not shutil.which("xrandr"):
+        print("[WARN] xrandr no disponible en este entorno. Se usará monitor por defecto.")
+        return None
+    try:
+        xrandr_output = subprocess.check_output(["xrandr"], text=True, timeout=5)
+    except Exception as e:
+        print(f"[WARN] No se pudo ejecutar xrandr: {e}")
+        return None
+    connected_monitors = [
+        line for line in xrandr_output.splitlines() if " connected" in line
+    ]
     for line in connected_monitors:
         if "1280x800" in line:
             return line.split()[0]
-    # Si no, cualquier DP conectado
     for line in connected_monitors:
         name = line.split()[0]
         if name.startswith("DP-"):
             return name
-    # Si no, cualquier HDMI conectado
     for line in connected_monitors:
         name = line.split()[0]
         if name.startswith("HDMI-"):
             return name
-    # Si no encuentra nada, regresar None
     return None
 
 class HSRBGui:
-    def __init__(self, target_monitor="DP-0"):
+    def __init__(self, target_monitor=None):
         self.root = tk.Tk()
-        # --- Mover GUI al monitor HDMI ---
-        try:
-            w, h, x, y = monitor_position(target_monitor)
-            # Establece tamaño y posicion de la ventana segun el monitor detectado
-            self.root.geometry(f"{w}x{h}+{x}+{y}")
-        except Exception as error:
-            print(f"[WARN] No pude mover GUI al monitor {target_monitor}: {error}")
-            # fallback si no encuentra monitor
-            w, h, x, y = 1280, 800, 0, 0
-            self.root.geometry(f"{w}x{h}+{x}+{y}")
+        # Intentar mover la GUI al monitor detectado
+        moved = False
+        if target_monitor:
+            try:
+                w, h, x, y = monitor_position(target_monitor)
+                self.root.geometry(f"{w}x{h}+{x}+{y}")
+                moved = True
+            except Exception as error:
+                print(f"[WARN] No se pudo mover GUI al monitor '{target_monitor}': {error}")
+        if not moved:
+            # Fallback: ventana de tamaño estándar en posición 0,0
+            self.root.geometry("1280x800+0+0")
         self.root.update_idletasks()
-        # ventana sin decoraciones
         self.root.overrideredirect(True)
         self.root.configure(bg="#111111")
         self.root.lift()
         self.root.focus_force()
-        # --- Mostrar imagenes y GIFs ---
+
+        # Mostrar imagenes y GIFs 
         self.image_label = tk.Label(
             self.root,
             bg="#111111",
             borderwidth=0,
             highlightthickness=0
         )
-        # --- Texto de pie de pagina ---
+        # Texto de pie de pagina 
         self.footer_label = tk.Label(
             self.root,
             text="",
@@ -88,7 +95,7 @@ class HSRBGui:
             bg="#111111",
             fg="white"
         )
-        # --- Texto que dice el robot ---
+        # Texto que dice el robot 
         self.text_talk = tk.Label(
             self.root,
             text="",
@@ -98,7 +105,7 @@ class HSRBGui:
             bg="#111111",
             fg="white"
         )
-        # --- Texto "ROBOT SAY" ---
+        # Texto "ROBOT SAY" 
         self.text_talkR = tk.Label(
             self.root,
             text="",
@@ -106,18 +113,18 @@ class HSRBGui:
             bg="#111111",
             fg="#4DA3FF"
         )
-        # --- Control de animacion ---
+        # Control de animacion 
         self.frames = []
         self.frame_index = 0
         self.animating = False
         self.talk_timer = None
         self.gif_speed = 80
         self.is_closing = False
-        # --- Atajos del teclado ---
+
         self.root.protocol("WM_DELETE_WINDOW", self.request_close)
         self.show_idle()
 
-    # --- Detiene cualquier animacion en curso ---
+    # Detiene cualquier animacion en curso
     def _cancel_timers(self):
         if self.talk_timer:
             try:
@@ -127,14 +134,14 @@ class HSRBGui:
             self.talk_timer = None
         self.animating = False
 
-    # --- Para evitar que se encimen elementos visuales ---
+    # Para evitar que se encimen elementos visuales 
     def _clear_layout(self):
         self.image_label.pack_forget()
         self.footer_label.pack_forget()
         self.text_talk.pack_forget()
         self.text_talkR.place_forget()
 
-    # --- Muestra la pantalla de reposo (idle)
+    # Muestra la pantalla de reposo (idle)
     def show_idle(self):
         self._cancel_timers()
         self._clear_layout()
@@ -142,8 +149,7 @@ class HSRBGui:
         self.image_label.config(bg="#111111")
         self.image_label.pack(expand=True, fill="both")
         try:
-            screen_w = 1280
-            screen_h = 800
+            screen_w, screen_h = 1280, 800
             original_img = Image.open(bioroboticsIMG).convert("RGB")
             original_w, original_h = original_img.size
             scale = min(screen_w / original_w, screen_h / original_h)
@@ -166,7 +172,7 @@ class HSRBGui:
                 fg="white"
             )
 
-    # --- Muestra en la pantalla el texto que el robot esta diciendo ---
+    # Muestra en la pantalla el texto que el robot esta diciendo
     def show_talk(self, text="Speaking..."):
         self._cancel_timers()
         self._clear_layout()
@@ -191,7 +197,7 @@ class HSRBGui:
         ms = int(max((num_chars / 10) * 1000, 2500))
         self.talk_timer = self.root.after(ms, self.show_idle)
 
-    def _setup_gif(self, gif_path, footer_text, footer_bg="white", speed=80):
+    def _setup_gif(self, gif_path, footer_text, speed=80):
         self._cancel_timers()
         self._clear_layout()
         self.gif_speed = speed
@@ -217,14 +223,14 @@ class HSRBGui:
         try:
             gif = Image.open(gif_path)
             self.root.update_idletasks()
-            # --- Calcula el area disponible para el GIF
+            # Calcula el area disponible para el GIF
             screen_w = 1280
             screen_h = 800 - self.footer_label.winfo_height()
             self.frames = []
             for frame in ImageSequence.Iterator(gif):
                 frame = frame.convert("RGB")
                 original_w, original_h = frame.size
-                scale = min((screen_w * 0.82) / original_w, (screen_h * 0.82) / original_h)
+                scale = min((screen_w * 0.95) / original_w, (screen_h * 0.95) / original_h)
                 new_w = int(original_w * scale)
                 new_h = int(original_h * scale)
                 resized_frame = frame.resize((new_w, new_h), Image.LANCZOS)
@@ -241,15 +247,15 @@ class HSRBGui:
             self.show_idle()
 
     def show_stop(self):
-        # --- Muestra el gif stop cuando se activa el boton de emergencia ---
+        # Muestra el gif stop cuando se activa el boton de emergencia
         self._setup_gif(abortGif, "STOP ACTIVATED", speed=50)
 
     def show_pointing(self):
-        # --- Muestra el gif de señalar ---
+        # Muestra el gif de señalar
         self._setup_gif(pointingGif, "POINT TO THE BAG", speed=200)
 
     def show_micro(self):
-        # --- Muestra el gif de microfono cuando el robot esta esperando respuesta
+        # Muestra el gif de microfono cuando el robot esta esperando respuesta
         self._setup_gif(microGif, "SPEAK LOUDLY", speed=80)
 
     def animate(self):
@@ -268,14 +274,14 @@ class HSRBGui:
         check_ros()
         self.root.mainloop()
 
-    #Evitar que se intente cerrar dos veces
+    # Evitar que se intente cerrar dos veces
     def request_close(self):
         if self.is_closing:
             return
         self.is_closing = True
         self.root.after(0, self.close_gui)
 
-    #Cierra Tkinter
+    # Cierra Tkinter
     def close_gui(self):
         self._cancel_timers()
         self.animating = False
@@ -290,7 +296,7 @@ class HSRBGui:
 
 class GuiNode(Node):
     def __init__(self, gui: HSRBGui):
-        super().__init__("hsrb_gui_node")
+        super().__init__("hsrb_gui_node") 
         self.gui = gui
         self.current_state = None
         self.last_runstop = None
@@ -329,10 +335,15 @@ class GuiNode(Node):
         self.gui.root.after(0, self.gui.show_talk, msg.data)
 
 def main():
+    # Si no hay DISPLAY definido usar :0 por defecto
+    if not os.environ.get("DISPLAY"):
+        os.environ["DISPLAY"] = ":0"
+        print("[INFO] DISPLAY no definido, usando :0 por defecto")
+
     rclpy.init()
     target_monitor = detect_robot_monitor()
     print(f"[INFO] Monitor detectado para GUI: {target_monitor}")
-    gui = HSRBGui(target_monitor=target_monitor if target_monitor else "DP-0")
+    gui = HSRBGui(target_monitor=target_monitor)
     node = GuiNode(gui)
     spin_thread = threading.Thread(target=rclpy.spin, args=(node,), daemon=True)
     spin_thread.start()
