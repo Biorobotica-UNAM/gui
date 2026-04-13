@@ -73,8 +73,10 @@ class HSRBGui:
         if not moved:
             # Fallback: ventana de tamaño estándar en posición 0,0
             self.root.geometry("1280x800+0+0")
-        self.root.update_idletasks()
         self.root.overrideredirect(True)
+        self.root.update_idletasks()
+        self.root.attributes("-fullscreen", True)
+        self.root.attributes("-topmost", True)
         self.root.configure(bg="#111111")
         self.root.lift()
         self.root.focus_force()
@@ -177,6 +179,7 @@ class HSRBGui:
         self._cancel_timers()
         self._clear_layout()
         self.root.configure(bg="#111111")
+
         # Muestra el encabezado de "ROBOT SAYS"
         self.text_talkR.config(
             text="ROBOT SAYS",
@@ -185,6 +188,7 @@ class HSRBGui:
             font=("Helvetica", 45, "bold")
         )
         self.text_talkR.place(x=40, y=35)
+
         # Muestra el texto que dice el robot centrado en la pantalla
         self.text_talk.config(
             text=text,
@@ -192,9 +196,10 @@ class HSRBGui:
             bg="#111111",
             font=("Arial", 75, "bold")
         )
+        # Timer para que se muestre el texto que dice Justina
         self.text_talk.pack(expand=True, fill="both", padx=70, pady=(120, 70))
         num_chars = len(text)
-        ms = int(max((num_chars / 10) * 1000, 2500))
+        ms = int(max((num_chars / 8) * 1000, 2500))
         self.talk_timer = self.root.after(ms, self.show_idle)
 
     def _setup_gif(self, gif_path, footer_text, speed=80):
@@ -337,8 +342,8 @@ class GuiNode(Node):
 def main():
     # Si no hay DISPLAY definido usar :0 por defecto
     if not os.environ.get("DISPLAY"):
-        os.environ["DISPLAY"] = ":0"
-        print("[INFO] DISPLAY no definido, usando :0 por defecto")
+        os.environ["DISPLAY"] = ":1"
+        print("[INFO] DISPLAY no definido, usando :1 por defecto")
 
     rclpy.init()
     target_monitor = detect_robot_monitor()
