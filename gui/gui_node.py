@@ -342,7 +342,7 @@ class GuiNode(Node):
 def main():
     # Si no hay DISPLAY definido usar :0 por defecto
     if not os.environ.get("DISPLAY"):
-        os.environ["DISPLAY"] = ":1"
+        os.environ["DISPLAY"] = ":0"
         print("[INFO] DISPLAY no definido, usando :1 por defecto")
 
     rclpy.init()
