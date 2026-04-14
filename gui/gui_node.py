@@ -343,7 +343,7 @@ def main():
     # Si no hay DISPLAY definido usar :0 por defecto
     if not os.environ.get("DISPLAY"):
         os.environ["DISPLAY"] = ":0"
-        print("[INFO] DISPLAY no definido, usando :1 por defecto")
+        print("[INFO] DISPLAY no definido, usando :0 por defecto")
 
     rclpy.init()
     target_monitor = detect_robot_monitor()
