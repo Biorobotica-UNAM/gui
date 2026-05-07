@@ -1,0 +1,11 @@
+<launch>
+
+    <node
+        pkg="justina_gui"
+        exec="gui_node"
+        name="gui_node"
+        output="screen"
+        emulate_tty="true"
+    />
+
+</launch>

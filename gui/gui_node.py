@@ -12,15 +12,17 @@ import shutil
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from rclpy.node import Node
 from std_msgs.msg import String, Bool
- 
-baeDIR = os.path.dirname(os.path.abspath(__file__))
-bioroboticsIMG = os.path.join(baeDIR, "JustinaScreen.png")
-abortGif = os.path.join(baeDIR, "abort.gif")
-pointingGif = os.path.join(baeDIR, "pointing.gif")
-microGif = os.path.join(baeDIR, "microphone.gif")
+from ament_index_python.packages import get_package_share_directory
+
+pkg_dir = get_package_share_directory("justina_gui")
+
+bioroboticsIMG = os.path.join(pkg_dir, "JustinaScreen.png")
+abortGif = os.path.join(pkg_dir, "abort.gif")
+pointingGif = os.path.join(pkg_dir, "pointing.gif")
+microGif = os.path.join(pkg_dir, "microphone.gif")
 
 def monitor_position(monitor_name: str):
-    """Obtiene posición y tamaño de un monitor usando xrandr."""
+    # Obtiene posición y tamaño de un monitor usando xrandr.
     xrandr_output = subprocess.check_output(["xrandr"], text=True)
     monitor_match = re.search(
         rf"^{re.escape(monitor_name)}\s+connected.*?(\d+)x(\d+)\+(\d+)\+(\d+)",
@@ -301,7 +303,7 @@ class HSRBGui:
 
 class GuiNode(Node):
     def __init__(self, gui: HSRBGui):
-        super().__init__("hsrb_gui_node") 
+        super().__init__("justina_gui_node") 
         self.gui = gui
         self.current_state = None
         self.last_runstop = None
@@ -311,7 +313,7 @@ class GuiNode(Node):
             depth=1,
             durability=DurabilityPolicy.VOLATILE
         )
-        self.create_subscription(Bool, "/runstop_button", self.runstop_callback, qos)
+        self.create_subscription(Bool, "/navigation/navigation_ctrl/stop", self.runstop_callback, qos)
         self.create_subscription(String, "/hsrb/gui/state", self.state_callback, 10)
         self.create_subscription(String, "/hsrb/gui/text", self.text_callback, 10)
 
