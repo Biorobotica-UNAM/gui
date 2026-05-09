@@ -1,6 +1,8 @@
 from setuptools import find_packages, setup
+from glob import glob 
+import os
 
-package_name = 'gui'
+package_name = 'justina_gui'
 
 setup(
     name=package_name,
@@ -9,21 +11,27 @@ setup(
     data_files=[
         # Index de ament (NECESARIO para que ROS2 encuentre el paquete)
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+
         # package.xml
         ('share/' + package_name, ['package.xml']),
+
         # Recursos (gifs/png) instalados junto al paquete
         ('share/' + package_name, [
             'gui/abort.gif',
             'gui/microphone.gif',
             'gui/pointing.gif',
-            # Solo deja esta línea si el archivo existe en esa ruta:
-            # 'gui/Biorobotics.png',
+            'gui/JustinaScreen.png',
         ]),
+
+        (
+            os.path.join('share', package_name, 'launch'),
+            glob('launch/*.xml')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='vero',
-    maintainer_email='vero@todo.todo',
+    maintainer_email='veronica.morales.tepale@gmail.com',
     description='Justina GUI node',
     license='TODO',
     tests_require=['pytest'],
