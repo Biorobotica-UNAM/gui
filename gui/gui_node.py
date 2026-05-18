@@ -345,7 +345,7 @@ class HSRBGui:
                 except Exception:
                     pass
             # Volver a idle si dejan de llegar imágenes
-            self.ros_image_timer = self.root.after(30000, self.return_from_ros_image)
+            self.ros_image_timer = self.root.after(10000, self.return_from_ros_image)
         except Exception as e:
             print(f"Error mostrando imagen ROS: {e}")
 
