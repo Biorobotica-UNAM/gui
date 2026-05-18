@@ -125,6 +125,8 @@ class HSRBGui:
         self.frame_index = 0
         self.animating = False
         self.talk_timer = None
+        self.ros_image_timer = None
+        self.block_ros_debug = False
         self.gif_speed = 80
         self.is_closing = False
         self.root.protocol("WM_DELETE_WINDOW", self.request_close)
@@ -149,6 +151,7 @@ class HSRBGui:
 
     #FUNCION PARA MOSTRAR LA PANTALLA DE REPOSO (idle)
     def show_idle(self):
+        self.block_ros_debug = False
         self._cancel_timers()
         self._clear_layout()
         self.root.configure(bg="#111111")
@@ -207,7 +210,7 @@ class HSRBGui:
         self.talk_timer = self.root.after(ms, self.show_idle)
 
     #FUNCION DE CONFIGURACION DE LOS GIFs (TEXTO,COLOR DE TEXTO, TAMAÑO DEL GIF)
-    def _setup_gif(self, gif_path, footer_text, speed=80):
+    def _setup_gif(self, gif_path, footer_text, speed=80, fullscreen=False):
         self._cancel_timers()
         self._clear_layout()
         self.gif_speed = speed
@@ -233,22 +236,28 @@ class HSRBGui:
         try:
             gif = Image.open(gif_path)
             self.root.update_idletasks()
+            
             # Calcula el area disponible para el GIF
             screen_w = 1280
             screen_h = 800 - self.footer_label.winfo_height()
             self.frames = []
             for frame in ImageSequence.Iterator(gif):
                 frame = frame.convert("RGB")
-                original_w, original_h = frame.size
-                scale = min((screen_w * 0.95) / original_w, (screen_h * 0.95) / original_h)
-                new_w = int(original_w * scale)
-                new_h = int(original_h * scale)
-                resized_frame = frame.resize((new_w, new_h), Image.LANCZOS)
-                final_frame = Image.new("RGB", (screen_w, screen_h), bg_color)
-                pos_x = (screen_w - new_w) // 2
-                pos_y = (screen_h - new_h) // 2
-                final_frame.paste(resized_frame, (pos_x, pos_y))
-                self.frames.append(ImageTk.PhotoImage(final_frame))
+                # GIF fullscreen optimizado
+                if fullscreen:
+                    self.frames.append(ImageTk.PhotoImage(frame))
+                # GIF normal -> resize dinamico
+                else:
+                    original_w, original_h = frame.size
+                    scale = min((screen_w * 0.95) / original_w, (screen_h * 0.95) / original_h)
+                    new_w = int(original_w * scale)
+                    new_h = int(original_h * scale)
+                    resized_frame = frame.resize((new_w, new_h), Image.LANCZOS)
+                    final_frame = Image.new("RGB", (screen_w, screen_h), bg_color)
+                    pos_x = (screen_w - new_w) // 2
+                    pos_y = (screen_h - new_h) // 2
+                    final_frame.paste(resized_frame, (pos_x, pos_y))
+                    self.frames.append(ImageTk.PhotoImage(final_frame))
             self.frame_index = 0
             self.animating = True
             self.animate()
@@ -258,7 +267,7 @@ class HSRBGui:
 
     #FUNCION PARA MOSTRAR EL GIF DE PARO CUANDO SE ACTIVA EL BOTON DE EMERGENCIA
     def show_stop(self):
-        self._setup_gif(abortGif, "STOP ACTIVATED", speed=50)
+        self._setup_gif(abortGif, "STOP ACTIVATED", speed=50, fullscreen=True)
 
     #FUNCION PARA MOSTRAR EL GIF DE SEÑALAMIENTO
     def show_pointing(self):
@@ -266,7 +275,8 @@ class HSRBGui:
 
     #FUNCION PARA MOSTRAR EL GIF DE MICROFONO (CUANDO SE ESPERA RESPUESTA)
     def show_micro(self):
-        self._setup_gif(microGif, "SPEAK LOUDLY", speed=80)
+        self.block_ros_debug = True
+        self._setup_gif(microGif, "SPEAK LOUDLY", speed=80, fullscreen=True)
 
     #FUNCION PARA MOSTRAR LAS ANIMACIOINES
     def animate(self):
@@ -304,9 +314,12 @@ class HSRBGui:
             self.root.destroy()
         except Exception:
             pass
+
     # FUNCION PARA MOSTRAR IMAGENES DE ROS        
     def show_ros_image(self, cv_image):
-        self._cancel_timers()
+        if self.block_ros_debug:
+            return
+        self.animating = False
         self._clear_layout()
         try:
             # OpenCV BGR -> RGB
@@ -324,8 +337,21 @@ class HSRBGui:
             self.photo = ImageTk.PhotoImage(final_img)
             self.image_label.config(image=self.photo, bg="#111111")
             self.image_label.pack(expand=True, fill="both")
+            self.root.update_idletasks()
+            # Reinicia timer cada vez que llega imagen nueva
+            if self.ros_image_timer:
+                try:
+                    self.root.after_cancel(self.ros_image_timer)
+                except Exception:
+                    pass
+            # Volver a idle si dejan de llegar imágenes
+            self.ros_image_timer = self.root.after(10000, self.return_from_ros_image)
         except Exception as e:
             print(f"Error mostrando imagen ROS: {e}")
+
+    def return_from_ros_image(self):
+        self.ros_image_timer = None
+        self.show_idle()
 
 class GuiNode(Node):
     def __init__(self, gui: HSRBGui):
