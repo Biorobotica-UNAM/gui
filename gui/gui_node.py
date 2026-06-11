@@ -21,7 +21,6 @@ pkg_dir = get_package_share_directory("justina_gui")
 
 bioroboticsIMG = os.path.join(pkg_dir, "JustinaScreen.png")
 abortGif = os.path.join(pkg_dir, "abort.gif")
-pointingGif = os.path.join(pkg_dir, "pointing.gif")
 microGif = os.path.join(pkg_dir, "microphone.gif")
 
 def monitor_position(monitor_name: str):
@@ -107,7 +106,7 @@ class HSRBGui:
             self.root,
             text="",
             font=("Arial", 75, "bold"),
-            wraplength=1000,
+            wraplength=1150,
             justify="center",
             bg="#111111",
             fg="white"
@@ -120,6 +119,16 @@ class HSRBGui:
             bg="#111111",
             fg="#4DA3FF"
         )
+        # Titulo de los modulos de visión
+        self.vision_title = tk.Label(
+            self.root,
+            text="",
+            font=("Helvetica", 32, "bold"),
+            bg="#101010",
+            fg="#4DA3FF",
+            pady=8
+        )
+
         # Control de animacion 
         self.frames = []
         self.frame_index = 0
@@ -148,6 +157,7 @@ class HSRBGui:
         self.footer_label.pack_forget()
         self.text_talk.pack_forget()
         self.text_talkR.place_forget()
+        self.vision_title.place_forget()
 
     #FUNCION PARA MOSTRAR LA PANTALLA DE REPOSO (idle)
     def show_idle(self):
@@ -189,94 +199,97 @@ class HSRBGui:
 
         #Encabezado de "ROBOT SAYS"
         self.text_talkR.config(
-            text="ROBOT SAYS",
+            text="JUSTINA SAYS",
             fg="#4DA3FF",
             bg="#111111",
             font=("Helvetica", 45, "bold")
         )
-        self.text_talkR.place(x=40, y=35)
+        self.text_talkR.place(relx=0.5, y=30, anchor="n")
 
         #Muestra el texto que dice el robot centrado en la pantalla
+        font_size = 75
+        if len(text) > 80:
+            font_size = 60
+        if len(text) > 140:
+            font_size = 50
+        if len(text) > 220:
+            font_size = 40
+        if len(text) > 300:
+            font_size = 35
+
         self.text_talk.config(
             text=text,
             fg="white",
             bg="#111111",
-            font=("Arial", 75, "bold")
+            font=("Arial", font_size, "bold")
         )
         #Timer para que se muestre el texto que dice Justina
-        self.text_talk.pack(expand=True, fill="both", padx=70, pady=(120, 70))
+        self.text_talk.pack(expand=True, fill="both", padx=80, pady=(100, 60))
         num_chars = len(text)
         ms = int(max((num_chars / 8) * 1000, 2500))
         self.talk_timer = self.root.after(ms, self.show_idle)
 
-    #FUNCION DE CONFIGURACION DE LOS GIFs (TEXTO,COLOR DE TEXTO, TAMAÑO DEL GIF)
-    def _setup_gif(self, gif_path, footer_text, speed=80, fullscreen=False):
+    #FUNCION PARA MOSTRAR EL GIF DE PARO CUANDO SE ACTIVA EL BOTON DE EMERGENCIA
+    def show_stop(self):
         self._cancel_timers()
         self._clear_layout()
-        self.gif_speed = speed
-        bg_color = "#111111"
-        footer_fg = "white"
-        footer_text_upper = footer_text.upper()
-        if "STOP" in footer_text_upper:
-            footer_fg = "#FF4D4D"
-        elif "POINT" in footer_text_upper:
-            footer_fg = "#FFFFFF"
-        elif "SPEAK" in footer_text_upper:
-            footer_fg = "#FFFFFF"
-        self.root.configure(bg=bg_color)
-        self.footer_label.config(
-            text=footer_text,
-            bg=bg_color,
-            fg=footer_fg,
-            font=("Arial", 50, "bold")
+        self.root.configure(bg="#111111")
+
+        self.image_label.config(
+            bg="#111111",
+            borderwidth=0,
+            highlightthickness=0
         )
-        self.footer_label.pack(side="bottom", fill="x", ipady=12)
-        self.image_label.config(bg=bg_color)
-        self.image_label.pack(side="top", expand=True, fill="both")
+        self.image_label.pack(
+            expand=True,
+            fill="both"
+        )
         try:
-            gif = Image.open(gif_path)
-            self.root.update_idletasks()
-            
-            # Calcula el area disponible para el GIF
-            screen_w = 1280
-            screen_h = 800 - self.footer_label.winfo_height()
+            gif = Image.open(abortGif)
             self.frames = []
             for frame in ImageSequence.Iterator(gif):
                 frame = frame.convert("RGB")
-                # GIF fullscreen optimizado
-                if fullscreen:
-                    self.frames.append(ImageTk.PhotoImage(frame))
-                # GIF normal -> resize dinamico
-                else:
-                    original_w, original_h = frame.size
-                    scale = min((screen_w * 0.95) / original_w, (screen_h * 0.95) / original_h)
-                    new_w = int(original_w * scale)
-                    new_h = int(original_h * scale)
-                    resized_frame = frame.resize((new_w, new_h), Image.LANCZOS)
-                    final_frame = Image.new("RGB", (screen_w, screen_h), bg_color)
-                    pos_x = (screen_w - new_w) // 2
-                    pos_y = (screen_h - new_h) // 2
-                    final_frame.paste(resized_frame, (pos_x, pos_y))
-                    self.frames.append(ImageTk.PhotoImage(final_frame))
+                self.frames.append(
+                    ImageTk.PhotoImage(frame)
+                )
             self.frame_index = 0
             self.animating = True
+            self.gif_speed = 50
             self.animate()
         except Exception as e:
-            print(f"Error GIF: {e}")
+            print(f"Error STOP GIF: {e}")
             self.show_idle()
-
-    #FUNCION PARA MOSTRAR EL GIF DE PARO CUANDO SE ACTIVA EL BOTON DE EMERGENCIA
-    def show_stop(self):
-        self._setup_gif(abortGif, "STOP ACTIVATED", speed=50, fullscreen=True)
-
-    #FUNCION PARA MOSTRAR EL GIF DE SEÑALAMIENTO
-    def show_pointing(self):
-        self._setup_gif(pointingGif, "POINT TO THE BAG", speed=200)
 
     #FUNCION PARA MOSTRAR EL GIF DE MICROFONO (CUANDO SE ESPERA RESPUESTA)
     def show_micro(self):
         self.block_ros_debug = True
-        self._setup_gif(microGif, "SPEAK LOUDLY", speed=80, fullscreen=True)
+        self._cancel_timers()
+        self._clear_layout()
+        self.root.configure(bg="#111111")
+        self.image_label.config(
+            bg="#111111",
+            borderwidth=0,
+            highlightthickness=0
+        )
+        self.image_label.pack(
+            expand=True,
+            fill="both"
+        )
+        try:
+            gif = Image.open(microGif)
+            self.frames = []
+            for frame in ImageSequence.Iterator(gif):
+                frame = frame.convert("RGB")
+                self.frames.append(
+                    ImageTk.PhotoImage(frame)
+                )
+            self.frame_index = 0
+            self.animating = True
+            self.gif_speed = 80
+            self.animate()
+        except Exception as e:
+            print(f"Error MICRO GIF: {e}")
+            self.show_idle()
 
     #FUNCION PARA MOSTRAR LAS ANIMACIOINES
     def animate(self):
@@ -289,7 +302,7 @@ class HSRBGui:
     def run(self):
         def check_ros():
             if not rclpy.ok():
-                self. request_close()
+                self.request_close()
                 return 
             self.root.after(200, check_ros)
         check_ros()
@@ -316,7 +329,7 @@ class HSRBGui:
             pass
 
     # FUNCION PARA MOSTRAR IMAGENES DE ROS        
-    def show_ros_image(self, cv_image):
+    def show_ros_image(self, cv_image, title="VISION"):
         if self.block_ros_debug:
             return
         self.animating = False
@@ -326,25 +339,41 @@ class HSRBGui:
             cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
             # Convertir a PIL
             pil_image = Image.fromarray(cv_image)
-            # DImensionar a la pantalla de JUstina
+            # Tamaño pantalla
             screen_w = 1280
             screen_h = 800
-            pil_image.thumbnail((screen_w, screen_h))
-            final_img = Image.new("RGB", (screen_w, screen_h), "#111111")
-            pos_x = (screen_w - pil_image.width) // 2
-            pos_y = (screen_h - pil_image.height) // 2
-            final_img.paste(pil_image, (pos_x, pos_y))
-            self.photo = ImageTk.PhotoImage(final_img)
-            self.image_label.config(image=self.photo, bg="#111111")
+            # Tamaño original
+            img_w, img_h = pil_image.size
+            # Escalar para llenar toda la pantalla
+            scale = max(screen_w / img_w, screen_h / img_h)
+            new_w = int(img_w * scale)
+            new_h = int(img_h * scale)
+            # Resize
+            pil_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+            # Recorte centrado
+            left = (new_w - screen_w) // 2
+            top = (new_h - screen_h) // 2
+            pil_image = pil_image.crop(
+                (
+                    left,
+                    top,
+                    left + screen_w,
+                    top + screen_h
+                )
+            )
+
+            self.photo = ImageTk.PhotoImage(pil_image)
+            self.image_label.config(image=self.photo, text="", bg="#111111")
             self.image_label.pack(expand=True, fill="both")
+            self.vision_title.config(text=title)
+            self.vision_title.place(x=0, y=740, width=1280)
             self.root.update_idletasks()
-            # Reinicia timer cada vez que llega imagen nueva
+            # Reinicia timer
             if self.ros_image_timer:
                 try:
                     self.root.after_cancel(self.ros_image_timer)
                 except Exception:
                     pass
-            # Volver a idle si dejan de llegar imágenes
             self.ros_image_timer = self.root.after(10000, self.return_from_ros_image)
         except Exception as e:
             print(f"Error mostrando imagen ROS: {e}")
@@ -379,6 +408,8 @@ class GuiNode(Node):
         self.create_subscription(RosImage, "/human_detection/pose_image_wrist", self.debug_waving_callback, 10)
         # DEBUG_FACES
         self.create_subscription(RosImage, "/face_recog/debug_image", self.debug_faces_callback, 10)
+        # DEBUG_SEATS
+        self.create_subscription(RosImage, "/vision/detect_seats/debug_image", self.debug_seats_callback, 10)
 
                                     # -------- Callbacks ---------
     #FUNCION DE CALLBACK STOP BUTTON                                
@@ -396,7 +427,6 @@ class GuiNode(Node):
         funcs = {
             "idle": self.gui.show_idle,
             "talk": lambda: self.gui.show_talk("Hablando..."),
-            "pointing": self.gui.show_pointing,
             "stop": self.gui.show_stop,
             "micro": self.gui.show_micro
         }
@@ -409,23 +439,30 @@ class GuiNode(Node):
     def debug_objects_callback(self, msg: RosImage):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            self.gui.root.after(0, self.gui.show_ros_image, cv_image)
+            self.gui.root.after(0, self.gui.show_ros_image, cv_image, "OBJECT DETECTION")
         except Exception as e:
             self.get_logger().error(f"Error debug_objects_callback: {e}")
     #FUNCION DE CALLBACK DEBUG_WAVING
     def debug_waving_callback(self, msg: RosImage):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            self.gui.root.after(0, self.gui.show_ros_image, cv_image)
+            self.gui.root.after(0, self.gui.show_ros_image, cv_image, "WAVING DETECTION")
         except Exception as e:
             self.get_logger().error(f"Error debug_waving_callback: {e}")
     # FUNCION DE CALLBACK DEBUG_FACES
     def debug_faces_callback(self, msg: RosImage):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            self.gui.root.after(0, self.gui.show_ros_image, cv_image)
+            self.gui.root.after(0, self.gui.show_ros_image, cv_image, "FACE DETECTION")
         except Exception as e:
             self.get_logger().error(f"Error debug_faces_callback: {e}")
+    # FUNCION DE CALLBACK DEBUG_SEATS
+    def debug_seats_callback(self, msg: RosImage):
+        try:
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            self.gui.root.after(0, self.gui.show_ros_image, cv_image, "SEAT DETECTION")
+        except Exception as e:
+            self.get_logger().error(f"Error debug_seats_callback: {e}")
 
 def main():
     # Si no hay DISPLAY definido usar :0 por defecto

@@ -19,7 +19,6 @@ setup(
         ('share/' + package_name, [
             'gui/abort.gif',
             'gui/microphone.gif',
-            'gui/pointing.gif',
             'gui/JustinaScreen.png',
         ]),
 
