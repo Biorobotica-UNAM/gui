@@ -283,6 +283,7 @@ class HSRBGui:
                 self.frames.append(
                     ImageTk.PhotoImage(frame)
                 )
+            print("Frames GIF:", lens(self.frames))
             self.frame_index = 0
             self.animating = True
             self.gif_speed = 80
