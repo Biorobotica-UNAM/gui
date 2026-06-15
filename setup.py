@@ -18,7 +18,7 @@ setup(
         # Recursos (gifs/png) instalados junto al paquete
         ('share/' + package_name, [
             'gui/abort.gif',
-            'gui/microphone.gif',
+            'gui/microphone.png',
             'gui/JustinaScreen.png',
         ]),
 
