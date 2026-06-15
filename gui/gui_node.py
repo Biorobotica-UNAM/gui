@@ -21,7 +21,7 @@ pkg_dir = get_package_share_directory("justina_gui")
 
 bioroboticsIMG = os.path.join(pkg_dir, "JustinaScreen.png")
 abortGif = os.path.join(pkg_dir, "abort.gif")
-microGif = os.path.join(pkg_dir, "microphone.gif")
+microPNG = os.path.join(pkg_dir, "microphone.png")
 
 def monitor_position(monitor_name: str):
     # Obtiene posición y tamaño de un monitor usando xrandr.
@@ -234,24 +234,18 @@ class HSRBGui:
         self._cancel_timers()
         self._clear_layout()
         self.root.configure(bg="#111111")
-
         self.image_label.config(
             bg="#111111",
             borderwidth=0,
             highlightthickness=0
         )
-        self.image_label.pack(
-            expand=True,
-            fill="both"
-        )
+        self.image_label.pack(expand=True, fill="both")
         try:
             gif = Image.open(abortGif)
-            self.frames = []
-            for frame in ImageSequence.Iterator(gif):
-                frame = frame.convert("RGB")
-                self.frames.append(
-                    ImageTk.PhotoImage(frame)
-                )
+            self.frames = [
+                ImageTk.PhotoImage(frame.convert("RGB"))
+                for frame in ImageSequence.Iterator(gif)
+            ]
             self.frame_index = 0
             self.animating = True
             self.gif_speed = 50
@@ -271,25 +265,13 @@ class HSRBGui:
             borderwidth=0,
             highlightthickness=0
         )
-        self.image_label.pack(
-            expand=True,
-            fill="both"
-        )
+        self.image_label.pack(expand=True, fill="both")
         try:
-            gif = Image.open(microGif)
-            self.frames = []
-            for frame in ImageSequence.Iterator(gif):
-                frame = frame.convert("RGB")
-                self.frames.append(
-                    ImageTk.PhotoImage(frame)
-                )
-            print("Frames GIF:", lens(self.frames))
-            self.frame_index = 0
-            self.animating = True
-            self.gif_speed = 80
-            self.animate()
+            img = Image.open(microPNG).convert("RGB")
+            self.photo = ImageTk.PhotoImage(img)
+            self.image_label.config(image=self.photo, text="")
         except Exception as e:
-            print(f"Error MICRO GIF: {e}")
+            print(f"Error MICRO IMG: {e}")
             self.show_idle()
 
     #FUNCION PARA MOSTRAR LAS ANIMACIOINES
