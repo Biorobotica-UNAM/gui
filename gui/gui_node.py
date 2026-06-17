@@ -400,7 +400,7 @@ class GuiNode(Node):
         if self.last_runstop == msg.data:
             return
         self.last_runstop = msg.data
-        self.gui.root.after(0, self.gui.show_stop if msg.data else self.gui.show_stop)
+        self.gui.root.after(0, self.gui.show_stop if msg.data else self.gui.show_idle)
     #FUNCION DE CALLBACK JUSTINA STATES (GIFs)
     def state_callback(self, msg: String):
         state = msg.data.lower().strip()
