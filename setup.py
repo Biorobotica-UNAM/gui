@@ -1,6 +1,7 @@
-from setuptools import find_packages, setup
-from glob import glob 
+from glob import glob
 import os
+
+from setuptools import find_packages, setup
 
 package_name = 'justina_gui'
 
@@ -24,7 +25,7 @@ setup(
 
         (
             os.path.join('share', package_name, 'launch'),
-            glob('launch/*.xml')
+            glob('launch/*.xml'),
         ),
     ],
     install_requires=['setuptools'],
